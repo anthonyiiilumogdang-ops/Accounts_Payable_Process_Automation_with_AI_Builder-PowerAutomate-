@@ -23,7 +23,7 @@ Automated Accounts Payable pipeline built with Microsoft Power Platform and AI B
 
 ## Screenshots
 ### Invoice Queue Dashboard
-![App Screenshot](Docs/App Screenshot.jpg)
+![App Screenshot](Docs/App-Screenshot.jpg)
 
 ## How to Import This Solution
 1. Download `solution/APAutomation.zip`
