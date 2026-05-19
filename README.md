@@ -1,5 +1,4 @@
 # Accounts_Payable_Process_Automation_with_AI_Builder-PowerAutomate-
-# AP Invoice Automation — Power Platform
 
 Automated Accounts Payable pipeline built with Microsoft Power Platform and AI Builder.
 
