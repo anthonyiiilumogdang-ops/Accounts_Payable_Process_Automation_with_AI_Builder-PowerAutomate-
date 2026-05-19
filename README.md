@@ -3,7 +3,7 @@
 Automated Accounts Payable pipeline built with Microsoft Power Platform and AI Builder.
 
 ## What It Does
-- Detects new invoices uploaded to SharePoint
+- Detects new invoices received through Outlook
 - Extracts invoice data (vendor, amount, due date, line items) using AI Builder
 - Saves structured data to a Dataverse queue with status tracking
 - Routes invoices through an approval workflow
