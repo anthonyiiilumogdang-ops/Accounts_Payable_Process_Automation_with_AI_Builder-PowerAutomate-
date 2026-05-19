@@ -19,11 +19,11 @@ Automated Accounts Payable pipeline built with Microsoft Power Platform and AI B
 | SharePoint | Invoice file storage |
 
 ## Architecture
-![Flow Diagram](docs/architecture.png)
+![Flow Diagram](Docs/Architecture.png)
 
 ## Screenshots
 ### Invoice Queue Dashboard
-![App Screenshot](docs/app-screenshot.png)
+![App Screenshot](Docs/App Screenshot.jpg)
 
 ## How to Import This Solution
 1. Download `solution/APAutomation.zip`
