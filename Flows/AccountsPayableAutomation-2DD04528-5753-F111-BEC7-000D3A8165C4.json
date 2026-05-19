@@ -1,0 +1,222 @@
+{
+  "properties": {
+    "connectionReferences": {
+      "shared_office365": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "new_sharedoffice365_22c3d"
+        },
+        "api": {
+          "name": "shared_office365"
+        }
+      },
+      "shared_commondataserviceforapps": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "new_sharedcommondataserviceforapps_8b305"
+        },
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        }
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        }
+      },
+      "triggers": {
+        "When_a_new_email_arrives_(V3)": {
+          "splitOn": "@triggerOutputs()?['body/value']",
+          "type": "OpenApiConnectionNotification",
+          "inputs": {
+            "parameters": {
+              "includeAttachments": true,
+              "fetchOnlyWithAttachment": true
+            },
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+              "operationId": "OnNewEmailV3",
+              "connectionName": "shared_office365"
+            }
+          }
+        }
+      },
+      "actions": {
+        "For_each": {
+          "foreach": "@triggerOutputs()?['body/attachments']",
+          "actions": {
+            "Get_Attachment_(V2)": {
+              "type": "OpenApiConnection",
+              "inputs": {
+                "parameters": {
+                  "messageId": "@triggerOutputs()?['body/id']",
+                  "attachmentId": "@item()?['id']"
+                },
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+                  "operationId": "GetAttachment_V2",
+                  "connectionName": "shared_office365"
+                }
+              }
+            },
+            "Process_invoices": {
+              "runAfter": {
+                "Get_Attachment_(V2)": [
+                  "Succeeded"
+                ]
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "parameters": {
+                  "item/requestv2/base64Encoded": "@outputs('Get_Attachment_(V2)')?['body/contentBytes']",
+                  "item/requestv2/pages": "1"
+                },
+                "host": {
+                  "apiId": "providers/Microsoft.ProcessSimple/operationGroups/aibuilder",
+                  "operationId": "aibuilderpredict_invoiceprocessingpretrained",
+                  "connectionName": "shared_commondataserviceforapps"
+                }
+              }
+            },
+            "List_rows": {
+              "runAfter": {
+                "Process_invoices": [
+                  "Succeeded"
+                ]
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "parameters": {
+                  "entityName": "crb3f_accountspayableinvoiceses",
+                  "$filter": "@concat('crb3f_invoiceid eq ''', outputs('Process_invoices')?['body/responsev2/predictionOutput/result/fields/invoiceId/valueText'], '''')"
+                },
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                  "operationId": "ListRecords",
+                  "connectionName": "shared_commondataserviceforapps"
+                }
+              }
+            },
+            "Condition": {
+              "actions": {
+                "Add_a_new_row": {
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "parameters": {
+                      "entityName": "crb3f_accountspayableinvoiceses",
+                      "item/crb3f_invoiceid": "@outputs('Process_invoices')?['body/responsev2/predictionOutput/result/fields/invoiceId/valueText']",
+                      "item/crb3f_amountdue": "@outputs('Process_invoices')?['body/responsev2/predictionOutput/result/fields/amountDue/valueNumber']",
+                      "item/crb3f_billtoaddress": "@outputs('Process_invoices')?['body/responsev2/predictionOutput/result/fields/billingAddress/valueText']",
+                      "item/crb3f_billtoname": "@outputs('Process_invoices')?['body/responsev2/predictionOutput/result/fields/billingAddressRecipient/valueText']",
+                      "item/crb3f_duedate": "@outputs('Process_invoices')?['body/responsev2/predictionOutput/result/fields/dueDate/valueDate']",
+                      "item/crb3f_invoicedate": "@outputs('Process_invoices')?['body/responsev2/predictionOutput/result/fields/invoiceDate/valueDate']",
+                      "item/crb3f_status": 1,
+                      "item/crb3f_taxamount": "@outputs('Process_invoices')?['body/responsev2/predictionOutput/result/fields/totalTax/valueNumber']",
+                      "item/crb3f_vendoraddress": "@outputs('Process_invoices')?['body/responsev2/predictionOutput/result/fields/vendorAddress/valueText']",
+                      "item/crb3f_vendorname": "@outputs('Process_invoices')?['body/responsev2/predictionOutput/result/fields/vendorName/valueText']"
+                    },
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                      "operationId": "CreateRecord",
+                      "connectionName": "shared_commondataserviceforapps"
+                    }
+                  }
+                },
+                "Append_to_string_variable": {
+                  "runAfter": {
+                    "Add_a_new_row": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "AppendToStringVariable",
+                  "inputs": {
+                    "name": "InvoiceSummary",
+                    "value": "@{concat(\r\n  '📧 Invoice Number: ', outputs('Process_invoices')?['body/responsev2/predictionOutput/result/fields/invoiceId/valueText'],\r\n  ' | Vendor: ', outputs('Process_invoices')?['body/responsev2/predictionOutput/result/fields/vendorName/valueText'],\r\n  ' | Amount: ', outputs('Process_invoices')?['body/responsev2/predictionOutput/result/fields/amountDue/valueText'],\r\n  ''\r\n)}\n\n"
+                  }
+                }
+              },
+              "runAfter": {
+                "List_rows": [
+                  "Succeeded"
+                ]
+              },
+              "else": {
+                "actions": {
+                  "Append_to_string_variable_(Skipped)": {
+                    "type": "AppendToStringVariable",
+                    "inputs": {
+                      "name": "InvoiceSummary",
+                      "value": "@{concat(\r\n  '⚠️ Skipped – Already exists: ', outputs('Process_invoices')?['body/responsev2/predictionOutput/result/fields/invoiceId/valueText'],\r\n  ' | Vendor: ', outputs('Process_invoices')?['body/responsev2/predictionOutput/result/fields/vendorName/valueText'],\r\n  ' | Amount: ', outputs('Process_invoices')?['body/responsev2/predictionOutput/result/fields/amountDue/valueText'],\r\n  ''\r\n)}\n\n"
+                    }
+                  }
+                }
+              },
+              "expression": {
+                "and": [
+                  {
+                    "equals": [
+                      "@length(outputs('List_rows')?['body/value'])",
+                      0
+                    ]
+                  }
+                ]
+              },
+              "type": "If"
+            }
+          },
+          "runAfter": {
+            "Initialize_variable": [
+              "Succeeded"
+            ]
+          },
+          "type": "Foreach"
+        },
+        "Initialize_variable": {
+          "runAfter": {},
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "InvoiceSummary",
+                "type": "string"
+              }
+            ]
+          }
+        },
+        "Send_an_email_(V2)": {
+          "runAfter": {
+            "For_each": [
+              "Succeeded"
+            ]
+          },
+          "type": "OpenApiConnection",
+          "inputs": {
+            "parameters": {
+              "emailMessage/To": "@triggerOutputs()?['body/toRecipients']",
+              "emailMessage/Subject": "✅ AP Bot: Invoice Processed – [@{triggerOutputs()?['body/subject']}]",
+              "emailMessage/Body": "<p class=\"editor-paragraph\">Hi,<br><br>This is an automated notification from your AP Automation Bot.<br>The following email has been successfully processed:</p><br><p class=\"editor-paragraph\">📧 Email Subject: [Subject - dynamic content from trigger]<br>Invoices Queued:</p><p class=\"editor-paragraph\">_________________________________________________________________________________<br>@{variables('InvoiceSummary')}</p><p class=\"editor-paragraph\">_________________________________________________________________________________</p><p class=\"editor-paragraph\">All invoices above have been added to the AP queue with a status of Pending and are awaiting approval.<br>This is an automated message. Please do not reply to this email.</p><br><p class=\"editor-paragraph\"><br>AP Automation Bot</p>",
+              "emailMessage/Importance": "Normal"
+            },
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+              "operationId": "SendEmailV2",
+              "connectionName": "shared_office365"
+            }
+          }
+        }
+      },
+      "outputs": {}
+    },
+    "templateName": null
+  },
+  "schemaVersion": "1.0.0.0"
+}
