@@ -26,7 +26,7 @@ Automated Accounts Payable pipeline built with Microsoft Power Platform and AI B
 ![App Screenshot](Docs/App-Screenshot.jpg)
 
 ## How to Import This Solution
-1. Download `solution/APAutomation.zip`
+1. Download `Solution/AccountsPayableAutomation_1_0_0_0.zip`
 2. Go to make.powerapps.com → Solutions → Import
 3. Upload the zip and follow the prompts
 4. Configure your SharePoint site connection
